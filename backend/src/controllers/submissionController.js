@@ -2,122 +2,71 @@ const axios = require("axios");
 const Submission = require("../models/submission");
 const Exam = require("../models/exam");
 const Question = require("../models/question");
+const moment = require("moment-timezone");
+
 require("dotenv").config();
 
-// ✅ Mapping ngôn ngữ sang Judge0 ID
-const languageMap = {
-  javascript: 63,
-  python: 71,
-  java: 62,
-  csharp: 51,
-  php: 68,
-  typescript: 74,
-  sql: 82,
-};
+const gradeDebugging = (submittedErrors, correctErrors) => {
+  let score = 0;
+  let feedback = [];
+  let correctCount = 0;
 
-const runCodeOnJudge0 = async (code, languageId, input) => {
-  try {
-    const response = await axios.post(
-      `${process.env.JUDGE0_BASE_URL}/submissions?base64_encoded=false&wait=true`,
-      {
-        source_code: code,
-        language_id: languageId,
-        stdin: input, // Gửi test case nếu cần
-      },
-      {
-        headers: {
-          "X-RapidAPI-Host": process.env.JUDGE0_API_HOST,
-          "X-RapidAPI-Key": process.env.JUDGE0_API_KEY,
-          "Content-Type": "application/json",
-        },
-      }
-    );
-    return response.data;
-  } catch (error) {
-    console.error("❌ Lỗi khi chạy code trên Judge0:", error);
-    return null;
-  }
-};
+  const uniqueSubmittedErrors = []; // Lưu lỗi duy nhất
+const seenErrors = new Set(); // Dùng để kiểm tra lỗi trùng
 
-// 📌 Hàm chấm điểm
-const gradeSubmission = async (answers) => {
-  let totalScore = 0;
-  const gradedAnswers = [];
+// Lọc bỏ lỗi trùng lặp từ submittedErrors
+for (const submitted of submittedErrors) {
+    const key = `${submitted.error.trim()}|${submitted.correct.trim()}`;
+    if (!seenErrors.has(key)) {
+        seenErrors.add(key);
+        uniqueSubmittedErrors.push(submitted);
+    }
+}
 
-  for (const answer of answers) {
-    const question = await Question.findById(answer.questionId);
-    if (!question) continue;
+for (const submitted of uniqueSubmittedErrors) {
+    const found = correctErrors.find(err => err.error.trim() === submitted.error.trim());
 
-    let isCorrect = false;
-    let status = "incorrect";
-    let score = 0;
-    let output = "";
-    let errorMessage = null;
+    if (found) {
+        const isCorrect = found.correct.trim() === submitted.correct.trim();
 
-    console.log("🛠️ Kiểm tra code của thí sinh:", answer.code);
-    console.log("✅ Test cases:", question.testCases);
-
-    if (!answer.code || answer.code.trim() === "") {
-      status = "not_attempted";
-      errorMessage = "Chưa nhập code";
-    } else {
-      try {
-        const languageId = languageMap[question.language];
-        if (!languageId) throw new Error(`Ngôn ngữ không hỗ trợ: ${question.language}`);
-
-        if (question.type === "coding") {
-          console.log("🔹 Chấm điểm Coding...");
-          let passedAll = true;
-
-          for (const testCase of question.testCases) {
-            // ✅ Nếu code của sinh viên có `console.log(sum(a, b))` => Không cần truyền input
-            let shouldUseTestCaseInput = !answer.code.includes("console.log(sum(");
-
-            // ✅ Gửi lên Judge0
-            const result = await runCodeOnJudge0(answer.code, languageId, shouldUseTestCaseInput ? testCase.input : "");
-
-            if (result && result.status.id === 3) {
-              const actualOutput = result.stdout ? result.stdout.trim() : "";
-              const expectedOutput = testCase.expectedOutput.trim();
-
-              console.log(`📌 So sánh output: Expected: '${expectedOutput}', Got: '${actualOutput}'`);
-
-              if (actualOutput !== expectedOutput) {
-                passedAll = false;
-                errorMessage = `Sai test case: input '${testCase.input}', Expected '${expectedOutput}', Got '${actualOutput}'`;
-                break;
-              }
-            } else {
-              passedAll = false;
-              errorMessage = result?.stderr || result?.message || "Lỗi runtime";
-              break;
-            }
-          }
-
-          if (passedAll) {
-            isCorrect = true;
-            score = 10;
-          }
+        if (isCorrect) {
+            correctCount++; // Đếm số lỗi đúng
+            feedback.push({ error: submitted.error, message: "Correct" });
+        } else {
+            feedback.push({
+                error: submitted.error,
+                message: `Incorrect. Expected: "${found.correct}", but got: "${submitted.correct}"`
+            });
         }
-      } catch (error) {
-        console.error("❌ Lỗi khi chạy code:", error);
-        errorMessage = "Lỗi runtime hoặc lỗi gửi lên Judge0";
-      }
+    } else {
+        feedback.push({
+            error: submitted.error,
+            message: "Incorrect. This error is not in the expected fixes list."
+        });
     }
+}
 
-    if (isCorrect) {
-      status = "correct";
-    }
 
-    totalScore += score;
-    gradedAnswers.push({ ...answer, status, score, output, errorMessage });
+
+  // ✅ Cập nhật lại cách tính điểm
+  const maxScore = 10; // Điểm tối đa nếu sửa đúng hết lỗi
+  const perErrorScore = maxScore / correctErrors.length; // Điểm cho mỗi lỗi đúng
+
+  score = correctCount * perErrorScore;
+
+  // Nếu sinh viên sửa **toàn bộ lỗi đúng**, đánh dấu là `correct`
+  let status = "incorrect";
+  if (correctCount === correctErrors.length) {
+    status = "correct";
+  } else if (correctCount > 0) {
+    status = "partial"; // Một số lỗi đúng
   }
 
-  return { totalScore, gradedAnswers };
+  return { score, feedback, status };
 };
-
 
 // 📌 Nộp bài thi
+
 exports.submitExam = async (req, res) => {
   try {
     console.log("🛠️ Dữ liệu nhận từ frontend:", req.body);
@@ -126,24 +75,63 @@ exports.submitExam = async (req, res) => {
     const userId = req.user?.id;
 
     if (!examId || !Array.isArray(answers)) {
-      return res.status(400).json({ message: "Invalid submission data" });
+      return res.status(400).json({ message: "Dữ liệu nộp bài không hợp lệ" });
     }
 
-    if (!userId) {
-      return res.status(401).json({ message: "Unauthorized, token missing or invalid" });
-    }
-
+    // 📌 Kiểm tra xem bài thi có tồn tại không
     const exam = await Exam.findById(examId);
     if (!exam) {
-      return res.status(404).json({ message: "Exam not found" });
+      return res.status(404).json({ message: "Không tìm thấy bài thi" });
     }
 
-    console.log("🛠️ Chấm bài thi...");
-    const { totalScore, gradedAnswers } = await gradeSubmission(answers);
+    // 📌 Kiểm tra nếu người dùng đã nộp bài
+    const previousSubmission = await Submission.findOne({ userId, examId });
+    if (previousSubmission) {
+      return res.status(403).json({ message: "Bạn đã nộp bài thi này rồi, không thể nộp lại!" });
+    }
+
+    let totalScore = 0;
+    const gradedAnswers = [];
+
+    for (const answer of answers) {
+      const question = await Question.findById(answer.questionId);
+      if (!question) {
+        console.error("❌ Không tìm thấy câu hỏi:", answer.questionId);
+        continue;
+      }
+
+      let score = 0;
+      let status = "incorrect";
+      let feedback = [];
+
+      if (question.type === "coding") {
+        // ✅ Chấm bài coding bằng Judge0
+        const judge0Result = await runJudge0(answer.code, question.language, question.testCases);
+        if (judge0Result.correct) {
+          status = "correct";
+          score = 10;
+        }
+        feedback = judge0Result.feedback;
+      }
+
+      if (question.type === "debugging") {
+        // ✅ Chấm bài debugging (HTML/CSS/SQL)
+        const { score: calculatedScore, feedback: fixFeedback } = gradeDebugging(answer.submittedErrors, question.expectedFixes);
+        score = calculatedScore;
+        feedback = fixFeedback;
+      }
+
+      if (score > 0) {
+        status = score === 10 ? "correct" : "partial";
+      }
+
+      totalScore += score;
+      gradedAnswers.push({ ...answer, status, score, feedback });
+    }
 
     console.log("📌 Debug kết quả chấm bài:", gradedAnswers);
 
-    console.log("✅ Lưu kết quả vào database...");
+    // 📌 **Lưu bài nộp vào MongoDB**
     const submission = new Submission({
       examId,
       userId,
@@ -152,27 +140,58 @@ exports.submitExam = async (req, res) => {
     });
 
     await submission.save();
-    res.status(201).json({ message: "Exam submitted successfully", submission });
+    console.log("✅ Lưu kết quả vào database thành công.");
+    
+    // 📌 **Trả kết quả về client**
+    res.status(201).json({ message: "Nộp bài thành công", submission });
+
   } catch (error) {
     console.error("❌ Lỗi Backend:", error);
-    res.status(500).json({ message: "Internal Server Error", error: error.message });
+    res.status(500).json({ message: "Lỗi server", error: error.message });
   }
 };
-
 
 
 
 // 📌 Lấy danh sách bài thi đã làm của sinh viên
+// exports.getStudentSubmissions = async (req, res) => {
+//   try {
+//     const userId = req.user.id;
+//     const submissions = await Submission.find().populate("examId", "title description");
+
+//     res.json(submissions);
+//   } catch (error) {
+//     res.status(500).json({ message: "Server error", error: error.message });
+//   }
+// };
+
+
+
 exports.getStudentSubmissions = async (req, res) => {
   try {
     const userId = req.user.id;
-    const submissions = await Submission.find({ userId }).populate("examId", "title description");
+    
+    // 📌 Populate để lấy thông tin bài thi và thông tin người dùng (cả username và name)
+    const submissions = await Submission.find()
+      .populate("examId", "title description")
+      .populate("userId", "username name"); // ✅ Lấy cả username và name cùng lúc
 
-    res.json(submissions);
+    // 📌 Chuyển `submittedAt` sang múi giờ Việt Nam (UTC+7)
+    const formattedSubmissions = submissions.map(submission => ({
+      ...submission.toObject(),
+      username: submission.userId?.username, // ✅ Hiển thị tên đăng nhập
+      name: submission.userId?.name, // ✅ Hiển thị tên đầy đủ
+      submittedAt: moment(submission.submittedAt).tz("Asia/Ho_Chi_Minh").format("YYYY-MM-DD HH:mm:ss"), // ✅ Chuyển sang UTC+7
+    }));
+
+    res.json(formattedSubmissions);
+
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
+
+
 
 // 📌 Lấy chi tiết bài làm của sinh viên
 exports.getSubmissionById = async (req, res) => {

@@ -1,61 +1,53 @@
 const Question = require("../models/question");
+const prettier = require("prettier");
+const parserHtml = require("prettier/parser-html");
 
-// 📌 Tạo câu hỏi mới
-// exports.createQuestion = async (req, res) => {
-//   try {
-//     const { title, description, language, type, difficulty, testCases, buggyCode, expectedOutput } = req.body;
+exports.createDebugQuestion = async (req, res) => {
+  try {
+    const { title, description, language, difficulty, buggyCode, expectedFixes } = req.body;
 
-//     if (!["javascript", "python", "java", "c++", "c#"].includes(language)) {
-//       return res.status(400).json({ message: "Invalid programming language" });
-//     }
+    // Kiểm tra ngôn ngữ hợp lệ
+    if (!["html", "css", "sql", "php"].includes(language)) {
+      return res.status(400).json({ message: "Ngôn ngữ không hợp lệ, chỉ hỗ trợ HTML, CSS, SQL, PHP" });
+    }
 
-//     if (!["multiple-choice", "coding", "debugging"].includes(type)) {
-//       return res.status(400).json({ message: "Invalid question type" });
-//     }
+    // Kiểm tra danh sách lỗi hợp lệ
+    if (!Array.isArray(expectedFixes) || expectedFixes.length === 0) {
+      return res.status(400).json({ message: "Câu hỏi debug phải có danh sách lỗi" });
+    }
 
-//     if (difficulty < 1 || difficulty > 5) {
-//       return res.status(400).json({ message: "Difficulty must be between 1 and 5" });
-//     }
+    // ✅ Đảm bảo buggyCode là string và format trước khi lưu
+    let formattedBuggyCode = buggyCode;
+    if (language === "html") {
+      formattedBuggyCode = await prettier.format(buggyCode, { parser: "html", plugins: [parserHtml] });
+    } else if (language === "css") {
+      formattedBuggyCode = await prettier.format(buggyCode, { parser: "css" });
+    }
 
-//     let formattedTestCases = [];
-//     let formattedExpectedOutput = [];
+    console.log("📌 Debug buggyCode:", typeof formattedBuggyCode, formattedBuggyCode);
 
-//     if (type === "coding") {
-//       if (!Array.isArray(testCases) || testCases.length === 0) {
-//         return res.status(400).json({ message: "Test cases cannot be empty for coding questions" });
-//       }
-//       formattedTestCases = testCases.map(tc => ({
-//         input: String(tc.input || "").trim(),
-//         expectedOutput: String(tc.expectedOutput || "").trim(),
-//       }));
-//     }
+    const newQuestion = new Question({
+      title,
+      description,
+      language,
+      type: "debugging",
+      difficulty,
+      buggyCode: formattedBuggyCode, // Đảm bảo đã format và là string
+      expectedFixes,
+      createdBy: req.user.id,
+    });
 
-//     if (type === "debugging") {
-//       if (!Array.isArray(expectedOutput) || expectedOutput.length === 0) {
-//         return res.status(400).json({ message: "Expected output cannot be empty for debugging questions" });
-//       }
-//       formattedExpectedOutput = expectedOutput.map(out => String(out).trim());
-//     }
+    await newQuestion.save();
+    res.status(201).json({ message: "Câu hỏi debug đã được tạo thành công", question: newQuestion });
 
-//     const newQuestion = new Question({
-//       title,
-//       description,
-//       language,
-//       type,
-//       difficulty,
-//       testCases: formattedTestCases,
-//       buggyCode: type === "debugging" ? String(buggyCode || "").trim() : "",
-//       expectedOutput: formattedExpectedOutput,
-//       createdBy: req.user.id,
-//     });
+  } catch (error) {
+    console.error("❌ Lỗi Server khi tạo câu hỏi debug:", error);
+    res.status(500).json({ message: "Lỗi server", error: error.message });
+  }
+};
 
-//     await newQuestion.save();
-//     res.status(201).json({ message: "Câu hỏi đã được tạo thành công", question: newQuestion });
 
-//   } catch (error) {
-//     res.status(500).json({ message: "Lỗi server", error: error.message });
-//   }
-// };
+
 
 exports.createQuestion = async (req, res) => {
   try {

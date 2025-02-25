@@ -1,13 +1,21 @@
 const mongoose = require("mongoose");
 
 const examSchema = new mongoose.Schema({
-  title: { type: String, required: true },
-  description: { type: String, required: true },
-  questions: [{ type: mongoose.Schema.Types.ObjectId, ref: "Question" }], // Liên kết với câu hỏi
+  title: { type: String, required: true }, // Tiêu đề bài thi
+  description: { type: String, required: true }, // Mô tả bài thi
+  questions: [{ type: mongoose.Schema.Types.ObjectId, ref: "Question", required: true }], // Danh sách câu hỏi
   timeLimit: { type: Number, required: true }, // Thời gian làm bài (phút)
-  createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" }, // Giáo viên tạo bài thi
-  createdAt: { type: Date, default: Date.now },
+  startTime: { type: Date, required: true }, // Thời gian bắt đầu bài thi
+  endTime: { type: Date, required: true }, // Thời gian kết thúc bài thi
+  createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true }, // Người tạo bài thi
+}, { timestamps: true });
+
+// Đảm bảo `startTime` luôn nhỏ hơn `endTime`
+examSchema.pre("save", function (next) {
+  if (this.startTime >= this.endTime) {
+    return next(new Error("Thời gian bắt đầu phải trước thời gian kết thúc"));
+  }
+  next();
 });
 
-const Exam = mongoose.model("Exam", examSchema);
-module.exports = Exam;
+module.exports = mongoose.model("Exam", examSchema);

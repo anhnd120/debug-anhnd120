@@ -11,7 +11,9 @@ import HelloWorld from './components/HelloWorld.vue'
         <div class="container wide">
             <div class="row">
                 <div class="col-lg-12">
-                  <a href="#"><img width="100%" height="100%" src="/assets/img/backgrounds/banner-cuoc-thi.jpg" alt=""></a>
+                    <RouterLink to="/">
+                        <img width="100%" height="100%" src="/assets/img/backgrounds/banner-cuoc-thi.jpg" alt="Trang chủ">
+                    </RouterLink>
                     <!--=======  breadcrumb wrpapper  =======-->
                     <div class="breadcrumb-wrapper">
                         <!--=======  breadcrumb content  =======-->
@@ -28,7 +30,7 @@ import HelloWorld from './components/HelloWorld.vue'
     </div>
     <!--====================  End of breadcrumb area  ====================-->
     <!--====================  page content area ====================-->
-    <div class="page-content-area" style="margin-top: -300px;">
+    <div class="page-content-area" style="margin-top: -230px;">
         <div class="container">
           <RouterView />
             

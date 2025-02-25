@@ -1,0 +1,44 @@
+Câu 1: java
+{
+  "title": "Sửa lỗi tính tổng số nguyên tố trong mảng",
+  "description": "Hàm `sumPrimes` tính tổng các số nguyên tố trong mảng, nhưng đang có lỗi cú pháp và logic. Hãy sửa lỗi để chương trình chạy đúng.",
+  "language": "java",
+  "difficulty": 3,
+  "buggyCode": "public class Main{\n\n    // Hàm kiểm tra số nguyên tố\n    public static boolean isPrime(int n) {\n        if (n < 2) return false;\n        // Duyệt từ 2 đến căn bậc hai của n\n        for (int i = 2; i <= (int)sqrt(n); i++) { //\n            if (n / i == 0) { //\n                return false;\n            }\n        }\n        return true;\n    }\n\n    // Hàm tính tổng các số nguyên tố trong mảng\n    public static int sumPrimes(int[] numbers) {\n        int sum = 0;\n        for (int n : number) { //\n            if (isPrimes(n)) { //\n                sum += number; //\n            }\n        }\n        return sum;\n    }\n\n    public static void main(String[] args) {\n        int[] numbers = {2, 3, 4, 5, 6, 7, 8, 9, 10, 11};\n        System.out.println(\"Sum of primes: \" + sumPrimes(numbers));\n    }\n}",
+  "expectedFixes": [
+    {
+      "error": "for (int i = 2; i <= (int)sqrt(n); i++)",
+      "correct": "for (int i = 2; i <= (int)Math.sqrt(n); i++)",
+      "message": "Thiếu `Math.` trước `sqrt(n)`"
+    },
+    {
+      "error": "if (n / i == 0)",
+      "correct": "if (n % i == 0)",
+      "message": "Sai phép toán `/` thay vì `%` trong kiểm tra số nguyên tố"
+    },
+    {
+      "error": "for (int n : number)",
+      "correct": "for (int n : numbers)",
+      "message": "Tên biến sai, `number` -> `numbers`"
+    },
+    {
+      "error": "if (isPrimes(n))",
+      "correct": "if (isPrime(n))",
+      "message": "Sai tên hàm `isPrimes` -> `isPrime`"
+    },
+    {
+      "error": "sum += number;",
+      "correct": "sum += n;",
+      "message": "Biến `number` không tồn tại, phải thay bằng `n`"
+    }
+  ],
+  "expectedOutput": "Sum of primes: 28",
+  "testCases": []
+}
+
+{
+  "questionId": "67bb6ae57b47c2e9478fb49c",
+  "code": "public class Main{\n\n    // Hàm kiểm tra số nguyên tố\n    public static boolean isPrime(int n) {\n        if (n < 2) return false;\n        // Duyệt từ 2 đến căn bậc hai của n\n        for (int i = 2; i <= (int)Math.sqrt(n); i++) {\n            if (n % i == 0) {\n                return false;\n            }\n        }\n        return true;\n    }\n\n    // Hàm tính tổng các số nguyên tố trong mảng\n    public static int sumPrimes(int[] numbers) {\n        int sum = 0;\n        for (int n : numbers) {\n            if (isPrime(n)) {\n                sum += n;\n            }\n        }\n        return sum;\n    }\n\n    public static void main(String[] args) {\n        int[] numbers = {2, 3, 4, 5, 6, 7, 8, 9, 10, 11};\n        System.out.println(\"Sum of primes: \" + sumPrimes(numbers));\n    }\n}"
+},
+
+

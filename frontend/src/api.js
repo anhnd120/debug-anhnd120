@@ -23,6 +23,14 @@ export const fetchExams = (token) =>
 export const fetchExamById = (examId, token) =>
   api.get(`/exams/${examId}`, { headers: { Authorization: `Bearer ${token}` } });
 
+// Lấy danh sách bài thi code
+export const fetchCodingExams = (token) =>
+  api.get("/coding/exams", { headers: { Authorization: `Bearer ${token}` } });
+
+// Lấy chi tiết bài thi
+export const fetchCodingExamById = (examId, token) =>
+  api.get(`/coding/exams/${examId}`, { headers: { Authorization: `Bearer ${token}` } });
+
 // Lấy token từ localStorage
 const getAuthHeaders = () => {
     const token = localStorage.getItem("token");
@@ -36,3 +44,10 @@ const getAuthHeaders = () => {
 // API nộp bài thi
 export const submitExam = (submissionData) =>
     axios.post(`${API_BASE_URL}/submissions`, submissionData, { headers: getAuthHeaders() });
+
+// API nộp bài thi
+export const submitCodingExam = (submissionData) =>
+  axios.post(`${API_BASE_URL}/coding/submissions`, submissionData, { headers: getAuthHeaders() });
+
+export const checkAnswer = (submissionData) =>
+  axios.post(`${API_BASE_URL}/coding/check-answer`, submissionData, { headers: getAuthHeaders() });

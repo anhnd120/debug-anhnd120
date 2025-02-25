@@ -1,6 +1,6 @@
 const express = require("express");
 const {
-  createQuestion,
+  createDebugQuestion,
   getAllQuestions,
   getQuestionById,
   updateQuestion,
@@ -11,7 +11,7 @@ const authMiddleware = require("../middlewares/auth");
 const router = express.Router();
 
 // CRUD câu hỏi (Chỉ giáo viên mới có thể thêm, sửa, xóa)
-router.post("/", authMiddleware, createQuestion);
+router.post("/", authMiddleware, createDebugQuestion);
 router.get("/", authMiddleware, getAllQuestions);
 router.get("/:id", authMiddleware, getQuestionById);
 router.put("/:id", authMiddleware, updateQuestion);

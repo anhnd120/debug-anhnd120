@@ -10,6 +10,7 @@ const examRoutes = require("./src/routes/examRoutes");
 const questionRoutes = require("./src/routes/questionRoutes");
 const submissionRoutes = require("./src/routes/submissionRoutes");
 const codeRoutes = require("./src/routes/codeRoutes");
+const codingRoutes = require("./src/routes/codingRoutes");
 
 const app = express();
 
@@ -32,7 +33,8 @@ app.use("/api/users", userRoutes);
 app.use("/api/exams", examRoutes);
 app.use("/api/questions", questionRoutes);
 app.use("/api/submissions", submissionRoutes);
-app.use("/api/code", codeRoutes); // ✅ Đảm bảo có dòng này
+app.use("/api/code", codeRoutes);
+app.use("/api/coding", codingRoutes);
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {

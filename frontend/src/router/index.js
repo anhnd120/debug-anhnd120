@@ -4,6 +4,7 @@ import Register from "../components/Register.vue";
 import Exams from "../views/Exams.vue";
 import ExamDetail from "../components/ExamDetail.vue";
 import ExamTake from "../views/ExamTake.vue";
+import CodingExamTake from "../views/CodingExamTake.vue";
 
 const routes = [
   { path: "/", component: Exams, meta: { requiresAuth: true } },
@@ -11,6 +12,7 @@ const routes = [
   { path: "/register", component: Register },
   { path: "/exams/:id", component: ExamDetail, meta: { requiresAuth: true } },
   { path: "/exams/:id/take", component: ExamTake, meta: { requiresAuth: true } },
+  { path: "/coding/exams/:id/take", component: CodingExamTake, meta: { requiresAuth: true } },
 ];
 
 const router = createRouter({
